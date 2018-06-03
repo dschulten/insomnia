@@ -310,8 +310,8 @@ export async function getRenderContext(
 export async function getRenderedRequestAndContext(
   request: Request,
   environmentId: string | null,
-  purpose?: RenderPurpose,
-  extraInfo?: ExtraRenderInfo,
+  purpose: ?RenderPurpose,
+  extraInfo: ?ExtraRenderInfo,
 ): Promise<{ request: RenderedRequest, context: Object }> {
   const ancestors = await db.withAncestors(request, [
     models.request.type,

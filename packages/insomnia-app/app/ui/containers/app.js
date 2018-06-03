@@ -66,7 +66,7 @@ import ErrorBoundary from '../components/error-boundary';
 import * as plugins from '../../plugins';
 import * as templating from '../../templating/index';
 import AskModal from '../components/modals/ask-modal';
-import { updateMimeType } from '../../models/request';
+import { updateMimeType, update } from '../../models/request';
 import MoveRequestGroupModal from '../components/modals/move-request-group-modal';
 import * as themes from '../../plugins/misc';
 import ExportRequestsModal from '../components/modals/export-requests-modal';
@@ -636,7 +636,57 @@ class App extends PureComponent {
     handleStopLoading(requestId);
   }
 
-  async _handleSendRequestWithEnvironment(requestId, environmentId) {
+  _resetHistory() {
+    const { activeRequest } = this.props;
+    const historyDescriptor = activeRequest.history;
+    historyDescriptor.current = -1;
+    historyDescriptor.responses = [];
+    historyDescriptor.requested = [];
+    update(activeRequest, historyDescriptor);
+  }
+
+  _restartMidHistory() {
+    const { activeRequest } = this.props;
+    const historyDescriptor = activeRequest.history;
+    if (historyDescriptor.current < historyDescriptor.responses.length - 1) {
+      historyDescriptor.responses.splice(historyDescriptor.current + 1);
+      historyDescriptor.requested.splice(historyDescriptor.current + 1);
+      historyDescriptor.current = historyDescriptor.responses.length - 1;
+      update(activeRequest, historyDescriptor);
+    }
+  }
+
+  _pushRequestedToHistory(request) {
+    const { activeRequest } = this.props;
+    const historyDescriptor = activeRequest.history;
+    historyDescriptor.requested.push(request);
+  }
+
+  _pushToHistory() {
+    const { activeRequest, activeResponse } = this.props;
+    const historyDescriptor = activeRequest.history;
+    const url = activeResponse.url;
+
+    if (historyDescriptor.current === historyDescriptor.responses.length - 1) {
+      const mostRecent = historyDescriptor.responses[historyDescriptor.responses.length - 1];
+      if (!mostRecent || mostRecent.url !== url) {
+        let historyRequest;
+        historyRequest = models.request.newRequest(url, 'GET', '');
+        historyDescriptor.responses.push(historyRequest);
+        historyDescriptor.current = historyDescriptor.current + 1;
+        update(activeRequest, historyDescriptor);
+      }
+    }
+  }
+
+  _handleSendFollowUpRequestWithEnvironment(requestId, environmentId, followUpRequest) {
+    this._restartMidHistory();
+    this._pushToHistory();
+    this._pushRequestedToHistory(followUpRequest);
+    return this._handleSendRequestWithEnvironment(requestId, environmentId, followUpRequest);
+  }
+
+  async _handleSendRequestWithEnvironment(requestId, environmentId, followUpRequest) {
     const { handleStartLoading, handleStopLoading, settings } = this.props;
     const request = await models.request.getById(requestId);
     if (!request) {
@@ -650,10 +700,15 @@ class App extends PureComponent {
       this._sendRequestTrackingKey = key;
     }
 
+    if (!followUpRequest) {
+      this._resetHistory();
+      this._pushRequestedToHistory(request);
+    }
+
     handleStartLoading(requestId);
 
     try {
-      const responsePatch = await network.send(requestId, environmentId);
+      const responsePatch = await network.send(requestId, environmentId, followUpRequest);
       await models.response.create(responsePatch, settings.maxHistoryResponses);
     } catch (err) {
       if (err.type === 'render') {
@@ -680,6 +735,83 @@ class App extends PureComponent {
 
     // Stop loading
     handleStopLoading(requestId);
+  }
+
+  _handleBack() {
+    const { activeRequest, activeEnvironment } = this.props;
+    const activeRequestId = activeRequest ? activeRequest._id : 'n/a';
+    if (activeRequestId !== 'n/a') {
+      const activeEnvironmentId = activeEnvironment ? activeEnvironment._id : 'n/a';
+      const historyDescriptor = activeRequest.history;
+      if (historyDescriptor && historyDescriptor.current > -1) {
+        this._pushToHistory();
+        historyDescriptor.current = historyDescriptor.current - 1;
+        if (historyDescriptor.current > -1) {
+          this._handleHistoricRequest(
+            activeRequestId,
+            activeEnvironmentId,
+            historyDescriptor,
+            true,
+          );
+        }
+      }
+    }
+  }
+
+  _handleHistoricRequest(activeRequestId, activeEnvironmentId, historyDescriptor, isBack) {
+    let request = historyDescriptor.responses[historyDescriptor.current];
+    let requested = historyDescriptor.requested[historyDescriptor.current];
+    if (request.url === requested.url && requested.method !== 'GET') {
+      if (requested.method === 'POST') {
+        showModal(AskModal, {
+          title: `Repeat POST`,
+          message: (
+            <p>
+              Do you want to execute <span className="monospace">POST</span> request on{' '}
+              <span className="monospace">{requested.url}</span> again?
+            </p>
+          ),
+          onDone: saidYes => {
+            if (saidYes) {
+              this._handleSendRequestWithEnvironment(
+                activeRequestId,
+                activeEnvironmentId,
+                requested,
+              );
+              this._resetHistory();
+              this._pushRequestedToHistory(requested);
+            } else {
+              // adjust current to allow repeating back/fwd click
+              historyDescriptor.current = historyDescriptor.current + (isBack ? 1 : -1);
+            }
+          },
+        });
+      } else {
+        return this._handleSendRequestWithEnvironment(
+          activeRequestId,
+          activeEnvironmentId,
+          requested,
+        );
+      }
+    } else {
+      return this._handleSendRequestWithEnvironment(activeRequestId, activeEnvironmentId, request);
+    }
+  }
+
+  _handleForward() {
+    const { activeRequest, activeEnvironment } = this.props;
+    const activeRequestId = activeRequest ? activeRequest._id : 'n/a';
+    if (activeRequestId !== 'n/a') {
+      const activeEnvironmentId = activeEnvironment ? activeEnvironment._id : 'n/a';
+      const historyDescriptor = activeRequest.history;
+      if (historyDescriptor && historyDescriptor.current < historyDescriptor.responses.length - 1) {
+        if (historyDescriptor.current === -1) {
+          historyDescriptor.current = 0;
+        }
+        historyDescriptor.current = historyDescriptor.current + 1;
+        this._handleHistoricRequest(activeRequestId, activeEnvironmentId, historyDescriptor, false);
+      }
+    }
   }
 
   async _handleSetActiveResponse(requestId, activeResponse = null) {
@@ -1117,6 +1249,11 @@ class App extends PureComponent {
               handleSetResponsePreviewMode={this._handleSetResponsePreviewMode}
               handleSetResponseFilter={this._handleSetResponseFilter}
               handleSendRequestWithEnvironment={this._handleSendRequestWithEnvironment}
+              handleSendFollowUpRequestWithEnvironment={
+                this._handleSendFollowUpRequestWithEnvironment
+              }
+              handleBack={this._handleBack}
+              handleForward={this._handleForward}
               handleSendAndDownloadRequestWithEnvironment={
                 this._handleSendAndDownloadRequestWithEnvironment
               }

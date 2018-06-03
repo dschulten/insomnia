@@ -67,6 +67,15 @@ export type RequestBody = {
   params?: Array<RequestBodyParameter>,
 };
 
+// see https://github.com/babel/babel-eslint/issues/485
+/* eslint-disable no-use-before-define */
+export type RequestHistory = {
+  current: number,
+  responses: Array<Request>,
+  requested: Array<Request>,
+};
+/* eslint-enable no-use-before-define */
+
 type BaseRequest = {
   url: string,
   name: string,
@@ -78,6 +87,9 @@ type BaseRequest = {
   authentication: RequestAuthentication,
   metaSortKey: number,
   isPrivate: boolean,
+
+  // Optional
+  history?: RequestHistory,
 
   // Settings
   settingStoreCookies: boolean,
@@ -102,7 +114,11 @@ export function init(): BaseRequest {
     authentication: {},
     metaSortKey: -1 * Date.now(),
     isPrivate: false,
-
+    history: {
+      current: -1,
+      responses: [],
+      requested: [],
+    },
     // Settings
     settingStoreCookies: true,
     settingSendCookies: true,
@@ -228,6 +244,15 @@ export function migrate(doc: Request): Request {
   doc = migrateWeirdUrls(doc);
   doc = migrateAuthType(doc);
   return doc;
+}
+
+export function newRequest(url: string, method: string, bodyText: string): BaseRequest {
+  return {
+    ...init(),
+    url,
+    method,
+    body: { text: bodyText },
+  };
 }
 
 export function create(patch: Object = {}): Promise<Request> {
