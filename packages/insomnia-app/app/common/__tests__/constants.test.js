@@ -13,6 +13,15 @@ describe('URL Regex', () => {
     expect('http://localhost:8000/foo/b@@r?hi=there#hello').toMatch(FLEXIBLE_URL_REGEX);
   });
 
+  it('matches rfc6570 URI Templates', () => {
+    expect('https://example.com/orders{?orderStatus}').toMatch(FLEXIBLE_URL_REGEX);
+    expect('https://example.com/orders?orderStatus=DONE{&orderStatus}').toMatch(FLEXIBLE_URL_REGEX);
+    expect('https://example.com/orders{#orderStatus}').toMatch(FLEXIBLE_URL_REGEX);
+    expect('https://example.com/orders{;orderStatus}').toMatch(FLEXIBLE_URL_REGEX);
+    expect('https://example.com/orders{/order}{?orderStatus}').toMatch(FLEXIBLE_URL_REGEX);
+    expect('https://example.com/orders{?orderQbe*}').toMatch(FLEXIBLE_URL_REGEX);
+  });
+
   it('does not match "stop" characters', () => {
     expect('string').not.toMatch(FLEXIBLE_URL_REGEX);
     expect('//relative-url.com').not.toMatch(FLEXIBLE_URL_REGEX);
