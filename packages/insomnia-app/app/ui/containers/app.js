@@ -13,6 +13,7 @@ import WorkspaceEnvironmentsEditModal from '../components/modals/workspace-envir
 import Toast from '../components/toast';
 import CookiesModal from '../components/modals/cookies-modal';
 import RequestSwitcherModal from '../components/modals/request-switcher-modal';
+import RequestFollowUpModal from '../components/modals/request-follow-up-modal';
 import SettingsModal, { TAB_INDEX_SHORTCUTS } from '../components/modals/settings-modal';
 import {
   COLLAPSE_SIDEBAR_REMS,
@@ -680,10 +681,27 @@ class App extends PureComponent {
   }
 
   _handleSendFollowUpRequestWithEnvironment(requestId, environmentId, followUpRequest) {
-    this._restartMidHistory();
-    this._pushToHistory();
-    this._pushRequestedToHistory(followUpRequest);
-    return this._handleSendRequestWithEnvironment(requestId, environmentId, followUpRequest);
+    const hasVariables = followUpRequest.url.search(/{.+}/) !== -1;
+
+    if (hasVariables) {
+      showModal(RequestFollowUpModal, {
+        onComplete: (url, selectedMethod) => {
+          followUpRequest.url = url;
+          followUpRequest.method = selectedMethod;
+          this._restartMidHistory();
+          this._pushToHistory();
+          this._pushRequestedToHistory(followUpRequest);
+          return this._handleSendRequestWithEnvironment(requestId, environmentId, followUpRequest);
+        },
+        url: followUpRequest.url,
+        selectedMethod: 'GET',
+      });
+    } else {
+      this._restartMidHistory();
+      this._pushToHistory();
+      this._pushRequestedToHistory(followUpRequest);
+      return this._handleSendRequestWithEnvironment(requestId, environmentId, followUpRequest);
+    }
   }
 
   async _handleSendRequestWithEnvironment(requestId, environmentId, followUpRequest) {

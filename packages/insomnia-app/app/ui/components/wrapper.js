@@ -32,6 +32,7 @@ import PromptModal from './modals/prompt-modal';
 import AskModal from './modals/ask-modal';
 import SelectModal from './modals/select-modal';
 import RequestCreateModal from './modals/request-create-modal';
+import RequestFollowUpModal from './modals/request-follow-up-modal';
 import RequestPane from './request-pane';
 import RequestSwitcherModal from './modals/request-switcher-modal';
 import SettingsModal from './modals/settings-modal';
@@ -559,6 +560,7 @@ class Wrapper extends React.PureComponent<Props, State> {
           <AskModal ref={registerModal} />
           <SelectModal ref={registerModal} />
           <RequestCreateModal ref={registerModal} />
+          <RequestFollowUpModal ref={registerModal} />
           <PaymentNotificationModal ref={registerModal} />
           <FilterHelpModal ref={registerModal} />
           <RequestRenderErrorModal ref={registerModal} />
