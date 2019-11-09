@@ -532,6 +532,10 @@ class CodeEditor extends React.Component {
       options.gutters.push('CodeMirror-foldgutter');
     }
 
+    if (this.props.gutters) {
+      options.gutters = options.gutters.concat(this.props.gutters);
+    }
+
     if (hintOptions) {
       options.hintOptions = hintOptions;
     }
@@ -782,6 +786,10 @@ class CodeEditor extends React.Component {
     }
 
     this.codeMirror.setValue(code || '');
+
+    if (this.props.onCodeMirrorValueSet) {
+      this.props.onCodeMirrorValueSet(this.codeMirror);
+    }
   }
 
   _handleFilterHistorySelect(filter) {
@@ -942,6 +950,7 @@ CodeEditor.propTypes = {
   onClick: PropTypes.func,
   onPaste: PropTypes.func,
   onCodeMirrorInit: PropTypes.func,
+  onCodeMirrorValueSet: PropTypes.func,
   render: PropTypes.func,
   nunjucksPowerUserMode: PropTypes.bool,
   getRenderContext: PropTypes.func,

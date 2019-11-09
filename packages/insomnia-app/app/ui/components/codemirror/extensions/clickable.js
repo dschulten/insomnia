@@ -32,14 +32,15 @@ CodeMirror.defineExtension('makeLinksClickable', function(handleClick) {
     movedDuringClick = false;
   });
 
+  const that = this;
   el.addEventListener('mouseup', e => {
     if (movedDuringClick) {
       return;
     }
-
     const cls = e.target.className;
     if (cls.indexOf('cm-clickable') >= 0) {
-      handleClick(entities.decode(e.target.innerHTML));
+      const { line, ch } = that.coordsChar({ left: e.clientX, top: e.clientY });
+      handleClick(entities.decode(e.target.innerHTML), { line, column: ch });
     }
   });
 });

@@ -5,6 +5,7 @@ import autobind from 'autobind-decorator';
 import PDFViewer from './response-pdf-viewer';
 import CSVViewer from './response-csv-viewer';
 import CodeEditor from '../codemirror/code-editor';
+import CodeMirror from 'codemirror';
 import ResponseWebView from './response-web-view';
 import MultipartViewer from './response-multipart';
 import ResponseRaw from './response-raw';
@@ -19,6 +20,10 @@ import KeydownBinder from '../keydown-binder';
 import { executeHotKey } from '../../../common/hotkeys-listener';
 import { hotKeyRefs } from '../../../common/hotkeys';
 import * as models from '../../../models';
+import * as plugins from '../../../plugins';
+import * as pluginContexts from '../../../plugins/context';
+import { RENDER_PURPOSE_NO_RENDER } from '../../../common/render';
+import type { Affordances } from '../../../models/request';
 
 let alwaysShowLargeResponses = false;
 
@@ -47,6 +52,12 @@ type State = {
   blockingBecauseTooLarge: boolean,
   bodyBuffer: Buffer | null,
   error: string,
+  affordances: Affordances,
+};
+
+type Position = {
+  line: number,
+  column: number,
 };
 
 @autobind
@@ -59,6 +70,7 @@ class ResponseViewer extends React.Component<Props, State> {
       blockingBecauseTooLarge: false,
       bodyBuffer: null,
       error: '',
+      affordances: {},
     };
   }
 
@@ -77,8 +89,27 @@ class ResponseViewer extends React.Component<Props, State> {
     }
   }
 
-  _handleOpenLink(link: string) {
-    this.props.handleSend(models.request.newRequest(link, 'GET', ''));
+  _handleOpenLink(link: string, position: Position) {
+    let request = this._requestAtPosition(position);
+    if (request) {
+      this.props.handleSend(request);
+    } else {
+      this.props.handleSend(models.request.newRequest(link, 'GET', '', []));
+    }
+  }
+
+  _requestAtPosition(position: Position) {
+    const affordancesInLine = this.state.affordances[position.line];
+    let request;
+    if (affordancesInLine) {
+      for (let affordance of affordancesInLine) {
+        if (affordance.startColumn <= position.column && position.column <= affordance.endColumn) {
+          request = affordance.request;
+          break;
+        }
+      }
+    }
+    return request;
   }
 
   _handleDismissBlocker() {
@@ -167,6 +198,56 @@ class ResponseViewer extends React.Component<Props, State> {
 
   _setSelectableViewRef(n: any) {
     this._selectableView = n;
+  }
+
+  async _applyAffordancePlugins(body: string): Promise<Affordances> {
+    const response = await models.response.getById(this.props.responseId || 'n/a');
+    for (const { plugin, hook } of await plugins.getAffordanceProviders()) {
+      const context = {
+        ...pluginContexts.app.init(RENDER_PURPOSE_NO_RENDER),
+        ...pluginContexts.store.init(plugin),
+        ...pluginContexts.response.init(response),
+      };
+      try {
+        return await hook(context, body);
+      } catch (err) {
+        err.plugin = plugin;
+        throw err;
+      }
+    }
+  }
+
+  async _onCodeMirrorValueSet(editor: CodeMirror) {
+    const body = editor.getDoc().getValue();
+    const affordances = await this._applyAffordancePlugins(body);
+    // TODO use plugin mechanism to choose content-type and profile-specific handler via props.responseId
+    //   could use responseHook with return value to collect an object with response metadata
+    //   that metadata could be laid out by content-type, but then all response hooks would have to execute
+    //   responseHooks could do a quick check if they can access the request - they could, using the requestId
+    //   alternative: add a new kind of plugin which gets app and response and answers with
+    //   affordances object - or make that more generic and return an object which would be accessible to other plugins, too,
+    //   as in the insomnia-plugin-response responseTag?
+    //   Alternative:
+    //     * extend existing responsePlugin and let it collect the data in some generic form, adding them to the respviewer state
+    //     * have a new affordances plugin with getAffordances(ResponseContext), returning affordances       k
+    //
+
+    Object.keys(affordances).forEach(line => {
+      const lineNumber = Number(line);
+      const info = editor.lineInfo(lineNumber);
+      const gutterMarker = info.gutterMarkers ? info.gutterMarkers['Insomnia-execute'] : undefined;
+      if (!gutterMarker) {
+        editor.setGutterMarker(lineNumber, 'Insomnia-execute', this._makeMarker());
+      }
+    });
+    this.setState({ affordances });
+  }
+
+  _makeMarker() {
+    const marker = document.createElement('div');
+    marker.style.color = '#282';
+    marker.innerHTML = '&#x25b6;';
+    return marker;
   }
 
   _isViewSelectable() {
@@ -408,6 +489,8 @@ class ResponseViewer extends React.Component<Props, State> {
           indentSize={editorIndentSize}
           keyMap={editorKeyMap}
           placeholder="..."
+          onCodeMirrorValueSet={this._onCodeMirrorValueSet}
+          gutters={['Insomnia-execute']}
         />
       );
     }

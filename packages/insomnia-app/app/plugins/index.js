@@ -53,6 +53,11 @@ export type Theme = {
   theme: PluginTheme,
 };
 
+export type AffordanceProvider = {
+  plugin: Plugin,
+  hook: Function,
+};
+
 let plugins: ?Array<Plugin> = null;
 
 export async function init(): Promise<void> {
@@ -192,6 +197,16 @@ export async function getResponseHooks(): Promise<Array<ResponseHook>> {
   let functions = [];
   for (const plugin of await getPlugins()) {
     const moreFunctions = plugin.module.responseHooks || [];
+    functions = [...functions, ...moreFunctions.map(hook => ({ plugin, hook }))];
+  }
+
+  return functions;
+}
+
+export async function getAffordanceProviders(): Promise<Array<AffordanceProvider>> {
+  let functions = [];
+  for (const plugin of await getPlugins()) {
+    const moreFunctions = plugin.module.affordanceProviders || [];
     functions = [...functions, ...moreFunctions.map(hook => ({ plugin, hook }))];
   }
 

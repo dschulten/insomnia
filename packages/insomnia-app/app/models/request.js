@@ -102,6 +102,16 @@ type BaseRequest = {
 
 export type Request = BaseModel & BaseRequest;
 
+export type Affordance = {
+  startColumn: number,
+  endColumn: number,
+  request: Request,
+};
+
+export type Affordances = {
+  [line: number]: Array<Affordance>,
+};
+
 export function init(): BaseRequest {
   return {
     url: '',

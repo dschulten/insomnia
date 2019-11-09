@@ -7,23 +7,26 @@ import ModalBody from '../base/modal-body';
 import ModalHeader from '../base/modal-header';
 import ModalFooter from '../base/modal-footer';
 import KeyValueEditor from '../key-value-editor/editor';
+import CodeEditor from '../codemirror/code-editor';
 import { METHOD_GET } from '../../../common/constants';
 import UriTemplate from 'uritemplate';
 
 type Props = {};
 type State = {
-  onComplete: (url: string, method: string) => void,
+  onComplete: ?(url: string, method: string, body: string) => void,
   selectedContentType: ?string,
   selectedMethod: string,
   uriTemplate: UriTemplate,
   variables: Array<{ name: string, value: string }>,
+  body: string,
   nunjucksPowerUserMode: boolean,
 };
 
 @autobind
 class RequestFollowUpModal extends PureComponent<Props, State> {
   modal: Modal;
-  editor: KeyValueEditor;
+  editor: ?KeyValueEditor;
+  bodyEditor: ?CodeEditor;
 
   constructor(props: Props) {
     super(props);
@@ -34,6 +37,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
       selectedMethod: METHOD_GET,
       uriTemplate: UriTemplate.parse('http://example.com{?address*}'),
       variables: [],
+      body: '',
       nunjucksPowerUserMode: false,
     };
   }
@@ -46,10 +50,14 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     this.editor = n;
   }
 
+  _setBodyEditorRef(n: ?CodeEditor) {
+    this.bodyEditor = n;
+  }
+
   async _handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const { uriTemplate, variables, selectedMethod } = this.state;
+    const { uriTemplate, variables, selectedMethod, body } = this.state;
     const values = {};
     for (let i = 0; i < variables.length; i++) {
       const variable = variables[i];
@@ -57,7 +65,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
       const varspec = uriTemplate.expressions
         .filter(expression => expression.constructor.name === 'VariableExpression')
         .map(expression => expression.varspecs)
-        .reduce((prev, curr) => prev.concat(curr))
+        .reduce((prev, curr) => prev.concat(curr), [])
         .filter(varspec => varspec.varname === variable.name)
         .pop();
 
@@ -72,7 +80,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
 
       values[variable.name] = value;
     }
-    this.state.onComplete(uriTemplate.expand(values), selectedMethod);
+    this.state.onComplete(uriTemplate.expand(values), selectedMethod, body);
 
     this.hide();
   }
@@ -85,6 +93,10 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     this.setState({ variables });
   }
 
+  _handleBodyChange(body: string) {
+    this.setState({ body });
+  }
+
   hide() {
     this.modal.hide();
   }
@@ -93,18 +105,26 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     onComplete: Function,
     selectedMethod: string,
     url: string,
-    nunjucksPowerUserMode: boolean,
+    body: string,
+    nunjucksPowerUserMode?: boolean,
   }) {
-    const { onComplete, selectedMethod, url, nunjucksPowerUserMode } = options;
+    const { onComplete, selectedMethod, url, body, nunjucksPowerUserMode } = options;
 
     let uriTemplate = UriTemplate.parse(url);
     const variables = uriTemplate.expressions
       .filter(expression => expression.constructor.name === 'VariableExpression')
       .map(expression => expression.varspecs)
-      .reduce((prev, curr) => prev.concat(curr))
+      .reduce((prev, curr) => prev.concat(curr), [])
       .map(varspec => ({ name: varspec.varname, value: '' }));
 
-    this.setState({ onComplete, selectedMethod, uriTemplate, variables, nunjucksPowerUserMode });
+    this.setState({
+      onComplete,
+      selectedMethod,
+      uriTemplate,
+      variables,
+      body,
+      nunjucksPowerUserMode,
+    });
 
     this.modal.show();
 
@@ -117,7 +137,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
   }
 
   render() {
-    const { selectedMethod, uriTemplate, variables, nunjucksPowerUserMode } = this.state;
+    const { selectedMethod, uriTemplate, variables, body, nunjucksPowerUserMode } = this.state;
 
     return (
       <Modal ref={this._setModalRef}>
@@ -125,10 +145,10 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
         <ModalBody className="pad" noScroll>
           <form onSubmit={this._handleSubmit}>
             <div className="form-row">
-              <div className="form-control form-control--outlined">
+              <div className="form-control">
                 <div>{uriTemplate.templateText}</div>
               </div>
-              <div className="form-control form-control--no-label" style={{ width: 'auto' }}>
+              <div className="form-control" style={{ width: 'auto' }}>
                 <MethodDropdown
                   right
                   className="btn btn--clicky no-wrap"
@@ -138,7 +158,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
               </div>
             </div>
             <div className="form-row">
-              <div className="pad-bottom scrollable-container">
+              <div className="no-pad-top scrollable-container">
                 <div className="scrollable" style={{ height: '10rem', position: 'relative' }}>
                   <KeyValueEditor
                     ref={this._setEditorRef}
@@ -150,6 +170,23 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
                     pairs={variables}
                     nunjucksPowerUserMode={nunjucksPowerUserMode}
                     onChange={this._handleChange}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="no-pad-bottom scrollable-container">
+                <div
+                  className="scrollable"
+                  style={{
+                    height: '10rem',
+                    position: 'relative',
+                    border: '1px solid var(--hl-md)',
+                  }}>
+                  <CodeEditor
+                    ref={this._setBodyEditorRef}
+                    onChange={this._handleBodyChange}
+                    defaultValue={body}
                   />
                 </div>
               </div>

@@ -24,7 +24,8 @@
       "insomnia-plugin-response",
       "insomnia-plugin-jsonpath",
       "insomnia-plugin-cookie-jar",
-      "insomnia-plugin-core-themes"
+      "insomnia-plugin-core-themes",
+      "insomnia-plugin-hateoas"
     ]
   },
   "licence": "MIT",
@@ -149,6 +150,7 @@
     "insomnia-plugin-request": "^1.0.26",
     "insomnia-plugin-response": "^1.0.26",
     "insomnia-plugin-uuid": "^1.0.17",
+    "insomnia-plugin-hateoas": "^1.0.0",
     "insomnia-prettify": "^0.1.13",
     "insomnia-url": "^0.1.12",
     "insomnia-xpath": "^1.0.16",

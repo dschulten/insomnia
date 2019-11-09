@@ -23,6 +23,9 @@ import {
   MAX_PANE_HEIGHT,
   MAX_PANE_WIDTH,
   MAX_SIDEBAR_REMS,
+  METHOD_POST,
+  METHOD_PUT,
+  METHOD_PATCH,
   MIN_PANE_HEIGHT,
   MIN_PANE_WIDTH,
   MIN_SIDEBAR_REMS,
@@ -682,19 +685,25 @@ class App extends PureComponent {
 
   _handleSendFollowUpRequestWithEnvironment(requestId, environmentId, followUpRequest) {
     const hasVariables = followUpRequest.url.search(/{.+}/) !== -1;
+    const mayHaveBody =
+      followUpRequest.method === METHOD_POST ||
+      followUpRequest.method === METHOD_PUT ||
+      followUpRequest.method === METHOD_PATCH;
 
-    if (hasVariables) {
+    if (hasVariables || mayHaveBody) {
       showModal(RequestFollowUpModal, {
-        onComplete: (url, selectedMethod) => {
+        onComplete: (url, selectedMethod, bodyText) => {
           followUpRequest.url = url;
           followUpRequest.method = selectedMethod;
+          followUpRequest.body.text = bodyText;
           this._restartMidHistory();
           this._pushToHistory();
           this._pushRequestedToHistory(followUpRequest);
           return this._handleSendRequestWithEnvironment(requestId, environmentId, followUpRequest);
         },
         url: followUpRequest.url,
-        selectedMethod: 'GET',
+        selectedMethod: followUpRequest.method,
+        body: followUpRequest.body.text,
       });
     } else {
       this._restartMidHistory();

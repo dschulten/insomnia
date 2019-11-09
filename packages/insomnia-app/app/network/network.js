@@ -874,6 +874,20 @@ export async function send(
     renderedRequest.method = followUpRequest.method;
     renderedRequest.body.text = followUpRequest.body.text;
     renderedRequest.parameters = followUpRequest.parameters;
+    if (followUpRequest.headers) {
+      const headersByName = renderedRequest.headers.reduce((acc, header) => {
+        acc[header.name] = header;
+        return acc;
+      }, {});
+      followUpRequest.headers.forEach(followupHeader => {
+        const foundHeader = headersByName[followupHeader.name];
+        if (foundHeader) {
+          foundHeader.value = followupHeader.value;
+        } else {
+          renderedRequest.headers.push(followupHeader);
+        }
+      });
+    }
   }
 
   const response = await _actuallySend(
