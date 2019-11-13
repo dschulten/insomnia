@@ -151,7 +151,8 @@ class KeyValueEditorRow extends PureComponent {
     }
   }
 
-  _handleEditMultiline() {
+  _handleEditMultiline(e) {
+    e.preventDefault();
     const { pair, handleRender, handleGetRenderContext } = this.props;
 
     showModal(CodePromptModal, {
