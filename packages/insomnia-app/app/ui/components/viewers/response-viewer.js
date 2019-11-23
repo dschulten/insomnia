@@ -94,7 +94,7 @@ class ResponseViewer extends React.Component<Props, State> {
     if (request) {
       this.props.handleSend(request);
     } else {
-      this.props.handleSend(models.request.newRequest(link, 'GET', '', []));
+      this.props.handleSend(models.request.newRequest(link, 'GET', []));
     }
   }
 

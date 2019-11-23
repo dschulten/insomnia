@@ -685,17 +685,19 @@ class App extends PureComponent {
 
   _handleSendFollowUpRequestWithEnvironment(requestId, environmentId, followUpRequest) {
     const hasVariables = followUpRequest.url.search(/{.+}/) !== -1;
+    const hasParams = followUpRequest.parameters.length;
     const mayHaveBody =
       followUpRequest.method === METHOD_POST ||
       followUpRequest.method === METHOD_PUT ||
       followUpRequest.method === METHOD_PATCH;
 
-    if (hasVariables || mayHaveBody) {
+    if (hasVariables || hasParams || mayHaveBody) {
       showModal(RequestFollowUpModal, {
-        onComplete: (url, selectedMethod, bodyText) => {
+        onComplete: (url, selectedMethod, body, params) => {
           followUpRequest.url = url;
           followUpRequest.method = selectedMethod;
-          followUpRequest.body.text = bodyText;
+          followUpRequest.body = body;
+          followUpRequest.parameters = params;
           this._restartMidHistory();
           this._pushToHistory();
           this._pushRequestedToHistory(followUpRequest);
@@ -703,7 +705,8 @@ class App extends PureComponent {
         },
         url: followUpRequest.url,
         selectedMethod: followUpRequest.method,
-        body: followUpRequest.body.text,
+        settings: this.props.settings,
+        request: followUpRequest,
       });
     } else {
       this._restartMidHistory();

@@ -7,9 +7,11 @@ import ModalBody from '../base/modal-body';
 import ModalHeader from '../base/modal-header';
 import ModalFooter from '../base/modal-footer';
 import KeyValueEditor from '../key-value-editor/editor';
-import CodeEditor from '../codemirror/code-editor';
 import { METHOD_GET } from '../../../common/constants';
 import UriTemplate from 'uritemplate';
+import BodyEditor from '../editors/body/body-editor';
+import type { Settings } from '../../../models/settings';
+import type { RequestBody, RequestParameter } from '../../../models/request';
 
 type Props = {};
 type State = {
@@ -18,15 +20,17 @@ type State = {
   selectedMethod: string,
   uriTemplate: UriTemplate,
   variables: Array<{ name: string, value: string }>,
-  body: string,
+  body: RequestBody,
+  params: Array<RequestParameter>,
   nunjucksPowerUserMode: boolean,
+  settings: Settings,
+  request: Request,
 };
 
 @autobind
 class RequestFollowUpModal extends PureComponent<Props, State> {
   modal: Modal;
   editor: ?KeyValueEditor;
-  bodyEditor: ?CodeEditor;
 
   constructor(props: Props) {
     super(props);
@@ -37,7 +41,10 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
       selectedMethod: METHOD_GET,
       uriTemplate: UriTemplate.parse('http://example.com{?address*}'),
       variables: [],
-      body: '',
+      request: {},
+      settings: {},
+      body: {},
+      params: [],
       nunjucksPowerUserMode: false,
     };
   }
@@ -50,14 +57,9 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     this.editor = n;
   }
 
-  _setBodyEditorRef(n: ?CodeEditor) {
-    this.bodyEditor = n;
-  }
-
   async _handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    const { uriTemplate, variables, selectedMethod, body } = this.state;
+    const { uriTemplate, variables, selectedMethod, body, params } = this.state;
     const values = {};
     for (let i = 0; i < variables.length; i++) {
       const variable = variables[i];
@@ -80,7 +82,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
 
       values[variable.name] = value;
     }
-    this.state.onComplete(uriTemplate.expand(values), selectedMethod, body);
+    this.state.onComplete(uriTemplate.expand(values), selectedMethod, body, params);
 
     this.hide();
   }
@@ -89,11 +91,19 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     this.setState({ selectedMethod });
   }
 
-  _handleChange(variables: Array<{ name: string, value: string }>) {
+  _handleVariableChange(variables: Array<{ name: string, value: string }>) {
     this.setState({ variables });
   }
 
-  _handleBodyChange(body: string) {
+  _handleUpdateRequestParameters(params: Array<RequestParameter>) {
+    this.setState({ params });
+  }
+
+  _handleBodyChange(request: Request, body: any) {
+    console.log(body);
+    // TODO put body to state and use later to build actual request body
+    //   find out how Greg does that
+    // TODO use multiline for exploded
     this.setState({ body });
   }
 
@@ -105,11 +115,12 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     onComplete: Function,
     selectedMethod: string,
     url: string,
-    body: string,
     nunjucksPowerUserMode?: boolean,
+    settings: Settings,
+    request: Request,
   }) {
-    const { onComplete, selectedMethod, url, body, nunjucksPowerUserMode } = options;
-
+    const { onComplete, selectedMethod, url, nunjucksPowerUserMode, settings, request } = options;
+    this.setState({ body: request.body, params: request.parameters });
     let uriTemplate = UriTemplate.parse(url);
     const variables = uriTemplate.expressions
       .filter(expression => expression.constructor.name === 'VariableExpression')
@@ -122,8 +133,9 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
       selectedMethod,
       uriTemplate,
       variables,
-      body,
       nunjucksPowerUserMode,
+      settings,
+      request,
     });
 
     this.modal.show();
@@ -136,8 +148,16 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     }, 200);
   }
 
+  // TODO use KeyValueEditor if type is form, set json on codeeditor for json
   render() {
-    const { selectedMethod, uriTemplate, variables, body, nunjucksPowerUserMode } = this.state;
+    const {
+      selectedMethod,
+      uriTemplate,
+      variables,
+      nunjucksPowerUserMode,
+      settings,
+      request,
+    } = this.state;
 
     return (
       <Modal ref={this._setModalRef}>
@@ -169,7 +189,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
                     valuePlaceholder="Value"
                     pairs={variables}
                     nunjucksPowerUserMode={nunjucksPowerUserMode}
-                    onChange={this._handleChange}
+                    onChange={this._handleVariableChange}
                   />
                 </div>
               </div>
@@ -179,14 +199,48 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
                 <div
                   className="scrollable"
                   style={{
-                    height: '10rem',
+                    height: '16rem',
                     position: 'relative',
                     border: '1px solid var(--hl-md)',
                   }}>
-                  <CodeEditor
-                    ref={this._setBodyEditorRef}
+                  <KeyValueEditor
+                    sortable
+                    allowMultiline={false}
+                    namePlaceholder="name"
+                    valuePlaceholder="value"
+                    pairs={request.parameters}
+                    // handleRender={handleRender}
+                    // handleGetRenderContext={handleGetRenderContext}
+                    nunjucksPowerUserMode={settings.nunjucksPowerUserMode}
+                    // isVariableUncovered={isVariableUncovered}
+                    onChange={this._handleUpdateRequestParameters}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="no-pad-bottom scrollable-container">
+                <div
+                  className="scrollable"
+                  style={{
+                    height: '16rem',
+                    position: 'relative',
+                    border: '1px solid var(--hl-md)',
+                  }}>
+                  <BodyEditor
+                    //  ref={this._setBodyEditorRef}
+                    // key={uniqueKey}
+                    // handleUpdateRequestMimeType={updateRequestMimeType}
+                    // **handleRender={handleRender}
+                    // **handleGetRenderContext={handleGetRenderContext}
+                    request={request}
+                    // workspace={workspace}
+                    // environmentId={environmentId}
+                    settings={settings}
                     onChange={this._handleBodyChange}
-                    defaultValue={body}
+                    // onChangeHeaders={forceUpdateRequestHeaders}
+                    nunjucksPowerUserMode={nunjucksPowerUserMode}
+                    // **isVariableUncovered={isVariableUncovered}
                   />
                 </div>
               </div>
@@ -194,7 +248,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
           </form>
         </ModalBody>
         <ModalFooter>
-          <button className="btn" onClick={this._handleSubmit}>
+          <button className="btn" type="exec-request" onClick={this._handleSubmit}>
             Execute
           </button>
         </ModalFooter>

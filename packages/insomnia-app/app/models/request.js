@@ -256,12 +256,11 @@ export function migrate(doc: Request): Request {
   return doc;
 }
 
-export function newRequest(url: string, method: string, bodyText: string): BaseRequest {
+export function newRequest(url: string, method: string): BaseRequest {
   return {
     ...init(),
     url,
     method,
-    body: { text: bodyText },
   };
 }
 

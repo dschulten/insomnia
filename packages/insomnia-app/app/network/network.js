@@ -872,7 +872,7 @@ export async function send(
   if (followUpRequest) {
     renderedRequest.url = followUpRequest.url;
     renderedRequest.method = followUpRequest.method;
-    renderedRequest.body.text = followUpRequest.body.text;
+    renderedRequest.body = followUpRequest.body;
     renderedRequest.parameters = followUpRequest.parameters;
     if (followUpRequest.headers) {
       const headersByName = renderedRequest.headers.reduce((acc, header) => {
