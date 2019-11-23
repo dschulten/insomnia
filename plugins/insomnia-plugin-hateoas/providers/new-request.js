@@ -1,11 +1,11 @@
-module.exports = function newRequest(url, method, bodyText, headers) {
+module.exports = function newRequest(url, method, parameters, body, headers) {
   return {
     url,
     name: 'New Request',
     description: '',
     method,
-    body: { text: bodyText },
-    parameters: [],
+    body, // {text: bodyText, mimeType: bodyMimeType, fileName: bodyFileName, params: bodyParams}
+    parameters: parameters || [],
     headers: headers,
     authentication: {},
     metaSortKey: -1 * Date.now(),

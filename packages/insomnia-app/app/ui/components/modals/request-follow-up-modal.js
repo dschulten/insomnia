@@ -22,7 +22,6 @@ type State = {
   variables: Array<{ name: string, value: string }>,
   body: RequestBody,
   params: Array<RequestParameter>,
-  nunjucksPowerUserMode: boolean,
   settings: Settings,
   request: Request,
 };
@@ -45,7 +44,7 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
       settings: {},
       body: {},
       params: [],
-      nunjucksPowerUserMode: false,
+      isVariableUncovered: false,
     };
   }
 
@@ -115,11 +114,10 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
     onComplete: Function,
     selectedMethod: string,
     url: string,
-    nunjucksPowerUserMode?: boolean,
     settings: Settings,
     request: Request,
   }) {
-    const { onComplete, selectedMethod, url, nunjucksPowerUserMode, settings, request } = options;
+    const { onComplete, selectedMethod, url, settings, request } = options;
     this.setState({ body: request.body, params: request.parameters });
     let uriTemplate = UriTemplate.parse(url);
     const variables = uriTemplate.expressions
@@ -133,7 +131,6 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
       selectedMethod,
       uriTemplate,
       variables,
-      nunjucksPowerUserMode,
       settings,
       request,
     });
@@ -154,9 +151,9 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
       selectedMethod,
       uriTemplate,
       variables,
-      nunjucksPowerUserMode,
       settings,
       request,
+      isVariableUncovered,
     } = this.state;
 
     return (
@@ -177,74 +174,68 @@ class RequestFollowUpModal extends PureComponent<Props, State> {
                 />
               </div>
             </div>
-            <div className="form-row">
-              <div className="no-pad-top scrollable-container">
-                <div className="scrollable" style={{ height: '10rem', position: 'relative' }}>
-                  <KeyValueEditor
-                    ref={this._setEditorRef}
-                    maxPairs={variables.length}
-                    allowMultiline={false}
-                    sortable
-                    namePlaceholder="Variable"
-                    valuePlaceholder="Value"
-                    pairs={variables}
-                    nunjucksPowerUserMode={nunjucksPowerUserMode}
-                    onChange={this._handleVariableChange}
-                  />
+            {variables && variables.length ? (
+              <div className="form-row">
+                <div className="no-pad-top scrollable-container">
+                  <div className="scrollable" style={{ height: '10rem', position: 'relative' }}>
+                    <KeyValueEditor
+                      ref={this._setEditorRef}
+                      maxPairs={variables.length}
+                      allowMultiline={false}
+                      sortable
+                      namePlaceholder="Variable"
+                      valuePlaceholder="Value"
+                      pairs={variables}
+                      nunjucksPowerUserMode={settings.nunjucksPowerUserMode}
+                      onChange={this._handleVariableChange}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="form-row">
-              <div className="no-pad-bottom scrollable-container">
-                <div
-                  className="scrollable"
-                  style={{
-                    height: '16rem',
-                    position: 'relative',
-                    border: '1px solid var(--hl-md)',
-                  }}>
-                  <KeyValueEditor
-                    sortable
-                    allowMultiline={false}
-                    namePlaceholder="name"
-                    valuePlaceholder="value"
-                    pairs={request.parameters}
-                    // handleRender={handleRender}
-                    // handleGetRenderContext={handleGetRenderContext}
-                    nunjucksPowerUserMode={settings.nunjucksPowerUserMode}
-                    // isVariableUncovered={isVariableUncovered}
-                    onChange={this._handleUpdateRequestParameters}
-                  />
+            ) : null}
+            {request.parameters && request.parameters.length ? (
+              <div className="form-row">
+                <div className="no-pad-bottom scrollable-container">
+                  <div
+                    className="scrollable"
+                    style={{
+                      height: '16rem',
+                      position: 'relative',
+                      border: '1px solid var(--hl-md)',
+                    }}>
+                    <KeyValueEditor
+                      sortable
+                      allowMultiline={false}
+                      namePlaceholder="name"
+                      valuePlaceholder="value"
+                      pairs={request.parameters}
+                      nunjucksPowerUserMode={settings.nunjucksPowerUserMode}
+                      onChange={this._handleUpdateRequestParameters}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="form-row">
-              <div className="no-pad-bottom scrollable-container">
-                <div
-                  className="scrollable"
-                  style={{
-                    height: '16rem',
-                    position: 'relative',
-                    border: '1px solid var(--hl-md)',
-                  }}>
-                  <BodyEditor
-                    //  ref={this._setBodyEditorRef}
-                    // key={uniqueKey}
-                    // handleUpdateRequestMimeType={updateRequestMimeType}
-                    // **handleRender={handleRender}
-                    // **handleGetRenderContext={handleGetRenderContext}
-                    request={request}
-                    // workspace={workspace}
-                    // environmentId={environmentId}
-                    settings={settings}
-                    onChange={this._handleBodyChange}
-                    // onChangeHeaders={forceUpdateRequestHeaders}
-                    nunjucksPowerUserMode={nunjucksPowerUserMode}
-                    // **isVariableUncovered={isVariableUncovered}
-                  />
+            ) : null}
+            {request.body && (request.body.params || request.body.text) ? (
+              <div className="form-row">
+                <div className="no-pad-bottom scrollable-container">
+                  <div
+                    className="scrollable"
+                    style={{
+                      height: '16rem',
+                      position: 'relative',
+                      border: '1px solid var(--hl-md)',
+                    }}>
+                    <BodyEditor
+                      request={request}
+                      settings={settings}
+                      onChange={this._handleBodyChange}
+                      isVariableUncovered={isVariableUncovered}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : null}
           </form>
         </ModalBody>
         <ModalFooter>

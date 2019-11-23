@@ -11,7 +11,7 @@ type Props = {};
 type State = {
   title: string,
   options: Array<{ name: string, value: string }>,
-  value: string,
+  value: string | Array<string>,
   message: string,
 };
 
@@ -46,7 +46,12 @@ class SelectModal extends React.PureComponent<Props, State> {
   }
 
   _handleSelectChange(e: SyntheticEvent<HTMLInputElement>) {
-    this.setState({ value: e.currentTarget.value });
+    if (this.state.multiple) {
+      const value = [...e.target.selectedOptions].map(opt => opt.value);
+      this.setState({ value });
+    } else {
+      this.setState({ value: e.currentTarget.value });
+    }
   }
 
   hide() {
@@ -54,11 +59,11 @@ class SelectModal extends React.PureComponent<Props, State> {
   }
 
   show(data: Object = {}) {
-    const { title, message, options, value, onDone } = data;
+    const { title, message, options, value, onDone, multiple = false, size = 1 } = data;
 
     this._doneCallback = onDone;
 
-    this.setState({ title, message, options, value });
+    this.setState({ title, message, options, value, multiple, size });
 
     this.modal && this.modal.show();
     setTimeout(() => {
@@ -67,15 +72,22 @@ class SelectModal extends React.PureComponent<Props, State> {
   }
 
   render() {
-    const { message, title, options, value } = this.state;
+    const { message, title, options, value, multiple, size } = this.state;
 
     return (
       <Modal noEscape ref={this._setModalRef}>
         <ModalHeader>{title || 'Confirm?'}</ModalHeader>
         <ModalBody className="wide pad">
           <p>{message}</p>
-          <div className="form-control form-control--outlined">
-            <select onChange={this._handleSelectChange} value={value}>
+          <div
+            className={
+              'form-control form-control--outlined ' + (size > 1 ? 'form-control--tall' : '')
+            }>
+            <select
+              onChange={this._handleSelectChange}
+              value={value}
+              multiple={multiple}
+              size={size}>
               {options.map(({ name, value }) => (
                 <option key={value} value={value}>
                   {name}

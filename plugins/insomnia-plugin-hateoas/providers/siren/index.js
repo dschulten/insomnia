@@ -20,10 +20,12 @@ module.exports.affordanceProviders = [
       .reduce((acc, arr) => acc.concat(arr), [])
       .forEach(action => {
         let type = action.type;
-        let bodyText = '';
+        let body;
+        let parameters;
+        let fileName;
         if (action.fields) {
           if (type === 'application/json') {
-            const body = {};
+            body = { type };
             action.fields.forEach(field => {
               let value = field.value;
               if (value) {
@@ -39,17 +41,58 @@ module.exports.affordanceProviders = [
               }
               body[field.name] = value;
             });
-            bodyText = JSON.stringify(body);
+            body.text = JSON.stringify(body);
           } else {
             type = 'application/x-www-form-urlencoded';
-            bodyText = action.fields
-              .map(field => field.name + (field.value ? '=' + encodeURI(field.value) : ''))
-              .join('&');
+            // TODO make pair name readonly
+            const fieldDescriptors = [];
+            const fields = action.fields;
+            for (let i = 0; i < fields.length; i++) {
+              const field = fields[i];
+              const options = [];
+              let value = field.multiple ? [] : undefined;
+              if (Array.isArray(field.value)) {
+                for (let j = 0; j < field.value.length; j++) {
+                  const optionValue = field.value[j];
+                  options.push({
+                    name: optionValue.title || optionValue.value,
+                    value: optionValue.value,
+                  });
+                  if (optionValue.selected) {
+                    if (field.multiple) {
+                      value.push(optionValue.value);
+                    } else {
+                      value = optionValue.value;
+                    }
+                  }
+                }
+                fieldDescriptors.push({
+                  name: field.name,
+                  type: 'select',
+                  value,
+                  multiple: field.type === 'checkbox',
+                  options,
+                });
+              } else {
+                fieldDescriptors.push(field);
+              }
+            }
+            if (action.method === 'GET') {
+              body = {};
+              parameters = fieldDescriptors;
+            } else {
+              body = { mimeType: type };
+              body.params = fieldDescriptors;
+            }
           }
         }
-        // TODO build a followup request which overlays the current request, not all req fields are needed,
-        //   instead describe form-urlencoded fields for editing, define editor mode etc.
-        const request = newRequest(action.href.href, action.method, bodyText, [
+        // TODO add mediatype from plugin to acceptable types
+        //   better uritemplate flowtyped
+        //   support file type and other types, (pair.type.file, pair.multiline in one-line-editor)
+        //   url in address bar when built with params
+        //   show rfm for query params (improve later with selected - or disable/enable?)
+        //  a
+        const request = newRequest(action.href.href, action.method, parameters, body, [
           {
             name: 'Content-Type',
             value: type,

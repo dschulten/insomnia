@@ -13,6 +13,7 @@ import Button from '../base/button';
 import OneLineEditor from '../codemirror/one-line-editor';
 import { showModal } from '../modals/index';
 import { describeByteSize } from '../../../common/misc';
+import SelectModal from '../modals/select-modal';
 
 @autobind
 class KeyValueEditorRow extends PureComponent {
@@ -155,7 +156,6 @@ class KeyValueEditorRow extends PureComponent {
   _handleEditMultiline(e) {
     e.preventDefault();
     const { pair, handleRender, handleGetRenderContext } = this.props;
-
     showModal(CodePromptModal, {
       submitName: 'Done',
       title: `Edit ${pair.name}`,
@@ -166,6 +166,23 @@ class KeyValueEditorRow extends PureComponent {
       onModeChange: mode => {
         this._handleTypeChange(Object.assign({}, pair, { multiline: mode }));
       },
+    });
+  }
+
+  _handleEditSelectMultiple(e) {
+    e.preventDefault();
+    const { pair, handleRender, handleGetRenderContext } = this.props;
+    showModal(SelectModal, {
+      // title, message, options, value, onDone, multiple = false, size = 1
+      submitName: 'Done',
+      title: `Select ${pair.name} values`,
+      message: 'Ctrl+Click to select multiple values',
+      onDone: this._handleValueChange,
+      enableRender: handleRender || handleGetRenderContext,
+      size: pair.options.length,
+      multiple: true,
+      options: pair.options,
+      value: pair.value,
     });
   }
 
@@ -201,6 +218,31 @@ class KeyValueEditorRow extends PureComponent {
           onClick={this._handleEditMultiline}>
           <i className="fa fa-pencil-square-o space-right" />
           {bytes > 0 ? describeByteSize(bytes, true) : 'Click to Edit'}
+        </button>
+      );
+    } else if (pair.type === 'select' && !pair.multiple) {
+      return (
+        <select
+          className="no-margin-top"
+          onChange={this._handleSelectValueChange}
+          value={pair.value}>
+          {pair.options.map(({ name, value }) => (
+            <option key={value} value={value}>
+              {name}
+            </option>
+          ))}
+        </select>
+      );
+    } else if (pair.type === 'select' && pair.multiple) {
+      const itemsSelected = pair.value && pair.value.length;
+      return (
+        <button
+          className="btn btn--outlined btn--super-duper-compact wide ellipsis"
+          onClick={this._handleEditSelectMultiple}>
+          <i className="fa fa-pencil-square-o space-right" />
+          {itemsSelected
+            ? `${pair.value.length} ${pair.value.length === 1 ? 'Item' : 'Items'} selected`
+            : 'Click to Select'}
         </button>
       );
     } else {
