@@ -101,7 +101,8 @@ class KeyValueEditorRow extends PureComponent {
     this._sendChange({ type: def.type, multiline: def.multiline, value });
   }
 
-  _handleDisableChange(disabled) {
+  _handleDisableChange(disabled, e) {
+    e.preventDefault();
     this._sendChange({ disabled });
   }
 
@@ -151,7 +152,8 @@ class KeyValueEditorRow extends PureComponent {
     }
   }
 
-  _handleEditMultiline() {
+  _handleEditMultiline(e) {
+    e.preventDefault();
     const { pair, handleRender, handleGetRenderContext } = this.props;
 
     showModal(CodePromptModal, {
