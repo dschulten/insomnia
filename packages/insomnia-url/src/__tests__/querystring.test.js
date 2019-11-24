@@ -119,6 +119,17 @@ describe('querystring', () => {
 
       expect(str).toBe('foo=bar%3F%3F&hello=&hi%20there=bar%3F%3F&=bar%3F%3F&=');
     });
+
+    it('builds repeated params from array params', () => {
+      const str = buildQueryStringFromParams([
+        { name: 'foo', value: ['bar', 'bar??'] },
+        { name: 'hello', value: ['baz', ''] },
+        { name: 'gnarf', value: [] },
+        { name: '', value: [] },
+      ]);
+
+      expect(str).toBe('foo=bar&foo=bar%3F%3F&hello=baz&hello');
+    });
   });
 
   describe('deconstructToParams()', () => {

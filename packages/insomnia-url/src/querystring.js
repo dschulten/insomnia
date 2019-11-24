@@ -80,7 +80,7 @@ module.exports.buildQueryParameter = function(param, strict) {
 
 /**
  * Build a querystring from a list of name/value pairs
- * @param parameters {{name: string, value: string}[]}
+ * @param parameters {{name: string, value: string | Array<String>}[]}
  * @param [strict=true] {boolean} - allow empty names and values
  * @returns {string}
  */
@@ -89,13 +89,30 @@ module.exports.buildQueryStringFromParams = function(parameters, strict) {
   let items = [];
 
   for (const param of parameters) {
-    let built = module.exports.buildQueryParameter(param, strict);
+    if (Array.isArray(param.value)) {
+      for (const value of param.value) {
+        let built = module.exports.buildQueryParameter(
+          {
+            name: param.name,
+            ...(value && { value }),
+          },
+          strict,
+        );
 
-    if (!built) {
-      continue;
+        if (!built) {
+          continue;
+        }
+        items.push(built);
+      }
+    } else {
+      let built = module.exports.buildQueryParameter(param, strict);
+
+      if (!built) {
+        continue;
+      }
+
+      items.push(built);
     }
-
-    items.push(built);
   }
 
   return items.join('&');

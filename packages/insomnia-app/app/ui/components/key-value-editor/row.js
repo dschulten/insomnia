@@ -410,7 +410,7 @@ KeyValueEditorRow.propTypes = {
   index: PropTypes.number.isRequired,
   pair: PropTypes.shape({
     name: PropTypes.string.isRequired,
-    value: PropTypes.string,
+    value: PropTypes.string | PropTypes.arrayOf(PropTypes.string),
     fileName: PropTypes.string,
     type: PropTypes.string,
     disabled: PropTypes.bool,
